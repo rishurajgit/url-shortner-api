@@ -4,6 +4,7 @@ from app.models import URL
 from sqlalchemy.orm import Session
 from app.schemas import URLCreate, URLResponse
 from app.short_code import generate_short_code
+from fastapi.responses import RedirectResponse
 
 Base.metadata.create_all(bind=engine)
 
@@ -54,3 +55,23 @@ def shorten_url(
         "short_code": new_url.short_code,
         "short_url": f"http://localhost:8000/{new_url.short_code}",
     }
+    
+@app.get("/{short_code}")
+def redirect_to_url(
+    short_code: str,
+    db: Session = Depends(get_db),
+):
+    url = db.query(URL).filter(
+        URL.short_code == short_code
+    ).first()
+
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Short URL not found",
+        )
+
+    return RedirectResponse(
+        url=url.original_url,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    )
