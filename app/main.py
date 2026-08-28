@@ -1,6 +1,9 @@
-from fastapi import FastAPI
-from app.database import Base, engine
+from fastapi import FastAPI, Depends, HTTPException, status
+from app.database import Base, engine, get_db
 from app.models import URL
+from sqlalchemy.orm import Session
+from app.schemas import URLCreate, URLResponse
+from app.short_code import generate_short_code
 
 Base.metadata.create_all(bind=engine)
 
@@ -14,4 +17,40 @@ app = FastAPI(
 def health_check():
     return {
         "message": "URL Shortener API is running"
+    }
+    
+@app.post(
+    "/shorten",
+    response_model=URLResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def shorten_url(
+    url_data: URLCreate,
+    db: Session = Depends(get_db),
+):
+    short_code = generate_short_code()
+
+    existing_url = db.query(URL).filter(
+        URL.short_code == short_code
+    ).first()
+
+    while existing_url:
+        short_code = generate_short_code()
+
+        existing_url = db.query(URL).filter(
+            URL.short_code == short_code
+        ).first()
+
+    new_url = URL(
+        original_url=str(url_data.url),
+        short_code=short_code,
+    )
+
+    db.add(new_url)
+    db.commit()
+    db.refresh(new_url)
+
+    return {
+        "short_code": new_url.short_code,
+        "short_url": f"http://localhost:8000/{new_url.short_code}",
     }
