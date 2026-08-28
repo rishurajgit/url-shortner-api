@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status
-from app.database import Base, engine, get_db
+from app.database import Base, engine, get_db, BASE_URL
 from app.models import URL
 from sqlalchemy.orm import Session
 from app.schemas import URLCreate, URLResponse
@@ -53,7 +53,7 @@ def shorten_url(
 
     return {
         "short_code": new_url.short_code,
-        "short_url": f"http://localhost:8000/{new_url.short_code}",
+        "short_url": f"{BASE_URL}/{new_url.short_code}",
     }
     
 @app.get("/{short_code}")
